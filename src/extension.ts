@@ -7,6 +7,7 @@ const strings = {
     taskManager: "タスク管理",
     tasks: "タスク",
     checklist: "チェックリスト",
+    settings: "設定",
     newTask: "新しいタスク",
     add: "追加",
     complete: "完了",
@@ -20,12 +21,15 @@ const strings = {
     days: "日",
     completePercent: "完了",
     progress: "進捗",
-    language: "言語"
+    language: "言語",
+    retentionDays: "保持日数",
+    save: "保存"
   },
   en: {
     taskManager: "Task Management",
     tasks: "Tasks",
     checklist: "Checklist",
+    settings: "Settings",
     newTask: "New Task",
     add: "Add",
     complete: "Complete",
@@ -39,7 +43,9 @@ const strings = {
     days: "days",
     completePercent: "Complete",
     progress: "Progress",
-    language: "Language"
+    language: "Language",
+    retentionDays: "Retention Days",
+    save: "Save"
   }
 };
 
@@ -164,6 +170,14 @@ export function activate(context: vscode.ExtensionContext) {
           const newLang = currentLang === "ja" ? "en" : "ja";
           await vscode.workspace.getConfiguration().update("taskManager.language", newLang, vscode.ConfigurationTarget.Global);
           cfg.language = newLang;
+        } else if (message.command === "toggleAutoDelete") {
+          const newAutoDelete = !cfg.autoDelete;
+          await vscode.workspace.getConfiguration().update("taskManager.autoDeleteCompleted", newAutoDelete, vscode.ConfigurationTarget.Global);
+          cfg.autoDelete = newAutoDelete;
+        } else if (message.command === "updateRetentionDays") {
+          const newDays = Math.max(1, Math.min(365, parseInt(message.days) || 7));
+          await vscode.workspace.getConfiguration().update("taskManager.retentionDays", newDays, vscode.ConfigurationTarget.Global);
+          cfg.retentionDays = newDays;
         }
 
         data = pruneChecklist(data);
@@ -325,7 +339,7 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
       <div class="tabs">
         <button class="tab-btn active" id="tabTasks" onclick="showTab('tasks')">${t.tasks}</button>
         <button class="tab-btn" id="tabChecklist" onclick="showTab('checklist')">${t.checklist}</button>
-        <button class="tab-btn" id="tabLanguage" onclick="toggleLanguage()">🌐 ${t.language}</button>
+        <button class="tab-btn" id="tabSettings" onclick="showTab('settings')">⚙️ ${t.settings}</button>
       </div>
 
       <div id="viewTasks">
@@ -362,18 +376,45 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         </ul>
       </div>
 
+      <div id="viewSettings" style="display:none;">
+        <div style="margin-bottom: 20px;">
+          <h3>${t.autoDelete}</h3>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 5px;">
+              <input type="checkbox" id="autoDeleteToggle" ${cfg.autoDelete ? 'checked' : ''} onchange="toggleAutoDelete()">
+              ${t.autoDelete}
+            </label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+            <label for="retentionDaysInput">${t.retentionDays}:</label>
+            <input type="number" id="retentionDaysInput" value="${cfg.retentionDays}" min="1" max="365" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+            <span>${t.days}</span>
+            <button onclick="updateRetentionDays()">${t.save}</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <h3>${t.language}</h3>
+          <button onclick="toggleLanguage()">🌐 ${cfg.language === 'ja' ? 'English' : '日本語'}</button>
+        </div>
+      </div>
+
       <script>
         const vscode = acquireVsCodeApi();
         function showTab(tab) {
           const tasks = document.getElementById('viewTasks');
           const checklist = document.getElementById('viewChecklist');
+          const settings = document.getElementById('viewSettings');
           const tBtn = document.getElementById('tabTasks');
           const cBtn = document.getElementById('tabChecklist');
-          const t = tab === 'tasks';
-          tasks.style.display = t ? 'block' : 'none';
-          checklist.style.display = t ? 'none' : 'block';
-          tBtn.classList.toggle('active', t);
-          cBtn.classList.toggle('active', !t);
+          const sBtn = document.getElementById('tabSettings');
+          
+          tasks.style.display = tab === 'tasks' ? 'block' : 'none';
+          checklist.style.display = tab === 'checklist' ? 'block' : 'none';
+          settings.style.display = tab === 'settings' ? 'block' : 'none';
+          
+          tBtn.classList.toggle('active', tab === 'tasks');
+          cBtn.classList.toggle('active', tab === 'checklist');
+          sBtn.classList.toggle('active', tab === 'settings');
         }
         function addTask() {
           const input = document.getElementById('taskInput');
@@ -399,6 +440,16 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         }
         function toggleLanguage() {
           vscode.postMessage({ command: 'toggleLanguage' });
+        }
+        function toggleAutoDelete() {
+          vscode.postMessage({ command: 'toggleAutoDelete' });
+        }
+        function updateRetentionDays() {
+          const input = document.getElementById('retentionDaysInput');
+          const days = parseInt(input.value);
+          if (days >= 1 && days <= 365) {
+            vscode.postMessage({ command: 'updateRetentionDays', days: days });
+          }
         }
       </script>
     </body>
