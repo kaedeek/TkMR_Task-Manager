@@ -23,7 +23,13 @@ const strings = {
     progress: "進捗",
     language: "言語",
     retentionDays: "保持日数",
-    save: "保存"
+    save: "保存",
+    theme: "テーマ",
+    themeRed: "赤",
+    themeBlue: "青",
+    themeWhite: "白",
+    themeBlack: "黒",
+    themeRainbow: "虹色"
   },
   en: {
     taskManager: "Task Management",
@@ -45,7 +51,13 @@ const strings = {
     progress: "Progress",
     language: "Language",
     retentionDays: "Retention Days",
-    save: "Save"
+    save: "Save",
+    theme: "Theme",
+    themeRed: "Red",
+    themeBlue: "Blue",
+    themeWhite: "White",
+    themeBlack: "Black",
+    themeRainbow: "Rainbow"
   }
 };
 
@@ -72,7 +84,8 @@ export function activate(context: vscode.ExtensionContext) {
     const autoDelete = cfg.get<boolean>("taskManager.autoDeleteCompleted", true);
     const retentionDays = cfg.get<number>("taskManager.retentionDays", 7);
     const language = cfg.get<string>("taskManager.language", "ja");
-    return { enableChecklist, autoDelete, retentionDays, language };
+    const theme = cfg.get<string>("taskManager.theme", "white");
+    return { enableChecklist, autoDelete, retentionDays, language, theme };
   }
 
   function getProgressText(tasks: ActiveTask[], checklist: CompletedTask[]): string {
@@ -178,6 +191,30 @@ export function activate(context: vscode.ExtensionContext) {
           const newDays = Math.max(1, Math.min(365, parseInt(message.days) || 7));
           await vscode.workspace.getConfiguration().update("taskManager.retentionDays", newDays, vscode.ConfigurationTarget.Global);
           cfg.retentionDays = newDays;
+        } else if (message.command === "toggleTheme") {
+          const currentTheme = cfg.theme;
+          let newTheme: string;
+          switch (currentTheme) {
+            case "red":
+              newTheme = "blue";
+              break;
+            case "blue":
+              newTheme = "white";
+              break;
+            case "white":
+              newTheme = "black";
+              break;
+            case "black":
+              newTheme = "rainbow";
+              break;
+            case "rainbow":
+              newTheme = "red";
+              break;
+            default:
+              newTheme = "white";
+          }
+          await vscode.workspace.getConfiguration().update("taskManager.theme", newTheme, vscode.ConfigurationTarget.Global);
+          cfg.theme = newTheme;
         }
 
         data = pruneChecklist(data);
@@ -226,7 +263,60 @@ function formatDate(ts: number): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklist: boolean; autoDelete: boolean; retentionDays: number; language: string }): string {
+function getThemeColors(theme: string) {
+  switch (theme) {
+    case "red":
+      return {
+        bg1: "#2e1e1e",
+        bg2: "#1a0f0f",
+        cardBg: "rgba(80, 30, 30, 0.5)",
+        accent: "rgba(212, 0, 0, 0.8)",
+        text: "#fff"
+      };
+    case "blue":
+      return {
+        bg1: "#1e1e2f",
+        bg2: "#121220",
+        cardBg: "rgba(30, 40, 80, 0.5)",
+        accent: "rgba(0, 120, 212, 0.8)",
+        text: "#fff"
+      };
+    case "white":
+      return {
+        bg1: "#f5f5f5",
+        bg2: "#e0e0e0",
+        cardBg: "rgba(255, 255, 255, 0.9)",
+        accent: "rgba(0, 120, 212, 0.8)",
+        text: "#333"
+      };
+    case "black":
+      return {
+        bg1: "#0a0a0a",
+        bg2: "#000000",
+        cardBg: "rgba(20, 20, 20, 0.9)",
+        accent: "rgba(255, 255, 255, 0.3)",
+        text: "#fff"
+      };
+    case "rainbow":
+      return {
+        bg1: "#1e1e2f",
+        bg2: "#121212",
+        cardBg: "rgba(60, 40, 80, 0.5)",
+        accent: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)",
+        text: "#fff"
+      };
+    default:
+      return {
+        bg1: "#f5f5f5",
+        bg2: "#e0e0e0",
+        cardBg: "rgba(255, 255, 255, 0.9)",
+        accent: "rgba(0, 120, 212, 0.8)",
+        text: "#333"
+      };
+  }
+}
+
+function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklist: boolean; autoDelete: boolean; retentionDays: number; language: string; theme: string }): string {
   const total = tasks.length + checklist.length;
   const completed = checklist.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -234,6 +324,9 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
   const filled = Math.round((progress / 100) * barLength);
   const bar = "█".repeat(filled) + " ".repeat(barLength - filled);
   const t = getStrings(cfg.language);
+  const theme = cfg.theme;
+  const colors = getThemeColors(theme);
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -242,19 +335,19 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         body {
           font-family: "Segoe UI", sans-serif;
           padding: 20px;
-          background: linear-gradient(135deg, #1e1e2f, #121212);
-          color: #fff;
+          background: linear-gradient(135deg, ${colors.bg1}, ${colors.bg2});
+          color: ${colors.text};
         }
         .progress-label {
           text-align: center;
           font-size: 16px;
-          color: #fff;
+          color: ${colors.text};
           margin-bottom: 18px;
           letter-spacing: 1px;
         }
         h2 {
           text-align: center;
-          color: #fff;
+          color: ${colors.text};
           margin-bottom: 16px;
         }
         .tabs {
@@ -266,13 +359,13 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         .tab-btn {
           padding: 6px 10px;
           border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.08);
-          color: #fff;
+          border: 1px solid ${colors.text}33;
+          background: ${colors.text}14;
+          color: ${colors.text};
           cursor: pointer;
         }
         .tab-btn.active {
-          background: rgba(0,120,212,0.8);
+          background: ${typeof colors.accent === 'string' && colors.accent.includes('gradient') ? colors.accent : colors.accent};
         }
         ul {
           list-style: none;
@@ -281,7 +374,7 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         li {
           backdrop-filter: blur(12px) saturate(180%);
           -webkit-backdrop-filter: blur(12px) saturate(180%);
-          background-color: rgba(40, 40, 40, 0.5);
+          background-color: ${colors.cardBg};
           margin: 10px 0;
           padding: 12px 16px;
           border-radius: 12px;
@@ -294,6 +387,7 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           flex: 1;
           margin-left: 10px;
           font-size: 15px;
+          color: ${colors.text};
         }
         .done { text-decoration: line-through; opacity: 0.6; }
         button {
@@ -303,33 +397,33 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           border-radius: 8px;
           padding: 6px 8px;
           font-size: 14px;
-          background: rgba(255,255,255,0.1);
-          color: white;
+          background: ${colors.text}1A;
+          color: ${colors.text};
           transition: background 0.2s;
         }
         button:hover {
-          background: rgba(255,255,255,0.25);
+          background: ${colors.text}33;
         }
         #taskInput {
           width: 70%;
           padding: 8px;
           border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.1);
-          color: white;
+          border: 1px solid ${colors.text}33;
+          background: ${colors.text}1A;
+          color: ${colors.text};
         }
         #taskInput::placeholder {
-          color: rgba(255,255,255,0.5);
+          color: ${colors.text}80;
         }
         #addBtn {
           padding: 8px 14px;
           margin-left: 10px;
-          background: rgba(0,120,212,0.7);
+          background: ${typeof colors.accent === 'string' && colors.accent.includes('gradient') ? colors.accent : colors.accent};
           color: white;
           border-radius: 8px;
         }
         #addBtn:hover {
-          background: rgba(0,120,212,1);
+          opacity: 0.9;
         }
       </style>
     </head>
@@ -387,10 +481,14 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           </div>
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
             <label for="retentionDaysInput">${t.retentionDays}:</label>
-            <input type="number" id="retentionDaysInput" value="${cfg.retentionDays}" min="1" max="365" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+            <input type="number" id="retentionDaysInput" value="${cfg.retentionDays}" min="1" max="365" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid ${colors.text}33; background: ${colors.text}1A; color: ${colors.text};">
             <span>${t.days}</span>
             <button onclick="updateRetentionDays()">${t.save}</button>
           </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <h3>${t.theme}</h3>
+          <button onclick="toggleTheme()">${cfg.theme === 'red' ? '🔴 ' + t.themeRed : cfg.theme === 'blue' ? '🔵 ' + t.themeBlue : cfg.theme === 'white' ? '⚪ ' + t.themeWhite : cfg.theme === 'black' ? '⚫ ' + t.themeBlack : '🌈 ' + t.themeRainbow}</button>
         </div>
         <div style="margin-bottom: 20px;">
           <h3>${t.language}</h3>
@@ -450,6 +548,9 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           if (days >= 1 && days <= 365) {
             vscode.postMessage({ command: 'updateRetentionDays', days: days });
           }
+        }
+        function toggleTheme() {
+          vscode.postMessage({ command: 'toggleTheme' });
         }
       </script>
     </body>
