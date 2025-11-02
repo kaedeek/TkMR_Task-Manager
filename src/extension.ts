@@ -214,13 +214,12 @@ export function activate(context: vscode.ExtensionContext) {
               newTheme = "white";
           }
           await vscode.workspace.getConfiguration().update("taskManager.theme", newTheme, vscode.ConfigurationTarget.Global);
-          cfg.theme = newTheme;
         }
 
         data = pruneChecklist(data);
         saveData(data);
         statusBarItem.text = getProgressText(data.tasks, data.checklist);
-        panel.webview.html = getWebviewContent(data.tasks, data.checklist, cfg);
+        panel.webview.html = getWebviewContent(data.tasks, data.checklist, readConfig());
       });
 
       context.subscriptions.push(
