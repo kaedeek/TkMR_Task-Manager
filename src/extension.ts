@@ -214,12 +214,14 @@ export function activate(context: vscode.ExtensionContext) {
               newTheme = "white";
           }
           await vscode.workspace.getConfiguration().update("taskManager.theme", newTheme, vscode.ConfigurationTarget.Global);
+          cfg.theme = newTheme;
         }
 
         data = pruneChecklist(data);
         saveData(data);
         statusBarItem.text = getProgressText(data.tasks, data.checklist);
-        panel.webview.html = getWebviewContent(data.tasks, data.checklist, readConfig());
+        const updatedConfig = readConfig();
+        panel.webview.html = getWebviewContent(data.tasks, data.checklist, updatedConfig);
       });
 
       context.subscriptions.push(
@@ -266,51 +268,81 @@ function getThemeColors(theme: string) {
   switch (theme) {
     case "red":
       return {
-        bg1: "#2e1e1e",
-        bg2: "#1a0f0f",
-        cardBg: "rgba(80, 30, 30, 0.5)",
-        accent: "rgba(212, 0, 0, 0.8)",
-        text: "#fff"
+        bg1: "#1a0a0a",
+        bg2: "#2d1414",
+        bg3: "#3d1f1f",
+        cardBg: "rgba(139, 0, 0, 0.25)",
+        cardBorder: "rgba(220, 20, 60, 0.3)",
+        accent: "linear-gradient(135deg, #dc143c, #8b0000)",
+        accentSolid: "#dc143c",
+        text: "#ffffff",
+        textSecondary: "rgba(255, 255, 255, 0.7)",
+        shadow: "rgba(220, 20, 60, 0.4)"
       };
     case "blue":
       return {
-        bg1: "#1e1e2f",
-        bg2: "#121220",
-        cardBg: "rgba(30, 40, 80, 0.5)",
-        accent: "rgba(0, 120, 212, 0.8)",
-        text: "#fff"
+        bg1: "#0a0e1a",
+        bg2: "#141b2d",
+        bg3: "#1e2840",
+        cardBg: "rgba(30, 58, 138, 0.25)",
+        cardBorder: "rgba(59, 130, 246, 0.3)",
+        accent: "linear-gradient(135deg, #3b82f6, #1e40af)",
+        accentSolid: "#3b82f6",
+        text: "#ffffff",
+        textSecondary: "rgba(255, 255, 255, 0.7)",
+        shadow: "rgba(59, 130, 246, 0.4)"
       };
     case "white":
       return {
-        bg1: "#f5f5f5",
-        bg2: "#e0e0e0",
-        cardBg: "rgba(255, 255, 255, 0.9)",
-        accent: "rgba(0, 120, 212, 0.8)",
-        text: "#333"
+        bg1: "#f8f9fa",
+        bg2: "#e9ecef",
+        bg3: "#dee2e6",
+        cardBg: "rgba(255, 255, 255, 0.95)",
+        cardBorder: "rgba(0, 0, 0, 0.1)",
+        accent: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+        accentSolid: "#4f46e5",
+        text: "#212529",
+        textSecondary: "rgba(33, 37, 41, 0.7)",
+        shadow: "rgba(0, 0, 0, 0.1)"
       };
     case "black":
       return {
-        bg1: "#0a0a0a",
-        bg2: "#000000",
-        cardBg: "rgba(20, 20, 20, 0.9)",
-        accent: "rgba(255, 255, 255, 0.3)",
-        text: "#fff"
+        bg1: "#000000",
+        bg2: "#0a0a0a",
+        bg3: "#141414",
+        cardBg: "rgba(30, 30, 30, 0.95)",
+        cardBorder: "rgba(255, 255, 255, 0.1)",
+        accent: "linear-gradient(135deg, #ffffff, #a0a0a0)",
+        accentSolid: "#ffffff",
+        text: "#ffffff",
+        textSecondary: "rgba(255, 255, 255, 0.6)",
+        shadow: "rgba(255, 255, 255, 0.2)"
       };
     case "rainbow":
       return {
-        bg1: "#1e1e2f",
-        bg2: "#121212",
-        cardBg: "rgba(60, 40, 80, 0.5)",
-        accent: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)",
-        text: "#fff"
+        bg1: "#0f0c29",
+        bg2: "#1a1442",
+        bg3: "#2d1f5c",
+        cardBg: "rgba(75, 0, 130, 0.2)",
+        cardBorder: "rgba(148, 0, 211, 0.4)",
+        accent: "linear-gradient(135deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)",
+        accentSolid: "#9400d3",
+        text: "#ffffff",
+        textSecondary: "rgba(255, 255, 255, 0.8)",
+        shadow: "rgba(148, 0, 211, 0.5)"
       };
     default:
       return {
-        bg1: "#f5f5f5",
-        bg2: "#e0e0e0",
-        cardBg: "rgba(255, 255, 255, 0.9)",
-        accent: "rgba(0, 120, 212, 0.8)",
-        text: "#333"
+        bg1: "#f8f9fa",
+        bg2: "#e9ecef",
+        bg3: "#dee2e6",
+        cardBg: "rgba(255, 255, 255, 0.95)",
+        cardBorder: "rgba(0, 0, 0, 0.1)",
+        accent: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+        accentSolid: "#4f46e5",
+        text: "#212529",
+        textSecondary: "rgba(33, 37, 41, 0.7)",
+        shadow: "rgba(0, 0, 0, 0.1)"
       };
   }
 }
@@ -330,168 +362,443 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
     <!DOCTYPE html>
     <html lang="en">
     <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
         body {
-          font-family: "Segoe UI", sans-serif;
-          padding: 20px;
-          background: linear-gradient(135deg, ${colors.bg1}, ${colors.bg2});
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+          padding: 24px;
+          background: linear-gradient(135deg, ${colors.bg1} 0%, ${colors.bg2} 50%, ${colors.bg3} 100%);
+          background-attachment: fixed;
           color: ${colors.text};
+          min-height: 100vh;
+          animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .container {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .progress-container {
+          background: ${colors.cardBg};
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid ${colors.cardBorder};
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 24px;
+          box-shadow: 0 8px 32px ${colors.shadow}40, 0 4px 16px rgba(0,0,0,0.2);
+          animation: slideDown 0.4s ease-out;
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .progress-label {
           text-align: center;
-          font-size: 16px;
+          font-size: 18px;
+          font-weight: 600;
           color: ${colors.text};
-          margin-bottom: 18px;
-          letter-spacing: 1px;
+          margin-bottom: 12px;
+          letter-spacing: 0.5px;
+        }
+        .progress-bar-container {
+          width: 100%;
+          height: 12px;
+          background: ${colors.bg3};
+          border-radius: 10px;
+          overflow: hidden;
+          margin: 12px 0;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .progress-bar-fill {
+          height: 100%;
+          background: ${colors.accent};
+          border-radius: 10px;
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 0 20px ${colors.shadow}60;
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.9; }
+        }
+        .progress-text {
+          text-align: center;
+          font-size: 24px;
+          font-weight: 700;
+          background: ${colors.accent};
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          margin-top: 8px;
         }
         h2 {
           text-align: center;
           color: ${colors.text};
-          margin-bottom: 16px;
+          margin-bottom: 24px;
+          font-size: 32px;
+          font-weight: 700;
+          text-shadow: 0 2px 8px ${colors.shadow}40;
         }
         .tabs {
           display: flex;
-          gap: 8px;
+          gap: 12px;
           justify-content: center;
-          margin-bottom: 12px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
         }
         .tab-btn {
-          padding: 6px 10px;
-          border-radius: 8px;
-          border: 1px solid ${colors.text}33;
-          background: ${colors.text}14;
+          padding: 12px 24px;
+          border-radius: 12px;
+          border: 2px solid ${colors.cardBorder};
+          background: ${colors.cardBg};
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
           color: ${colors.text};
           cursor: pointer;
+          font-size: 15px;
+          font-weight: 600;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          position: relative;
+          overflow: hidden;
+        }
+        .tab-btn::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 0;
+          height: 0;
+          border-radius: 50%;
+          background: ${colors.accent};
+          transform: translate(-50%, -50%);
+          transition: width 0.6s, height 0.6s;
+        }
+        .tab-btn:hover::before {
+          width: 300px;
+          height: 300px;
+        }
+        .tab-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px ${colors.shadow}50;
+          border-color: ${colors.accentSolid};
         }
         .tab-btn.active {
-          background: ${typeof colors.accent === 'string' && colors.accent.includes('gradient') ? colors.accent : colors.accent};
+          background: ${colors.accent};
+          border-color: ${colors.accentSolid};
+          color: white;
+          box-shadow: 0 6px 20px ${colors.shadow}60;
+          transform: translateY(-2px);
+        }
+        .tab-btn > * {
+          position: relative;
+          z-index: 1;
+        }
+        .view-container {
+          animation: fadeIn 0.4s ease-in;
         }
         ul {
           list-style: none;
           padding: 0;
         }
         li {
-          backdrop-filter: blur(12px) saturate(180%);
-          -webkit-backdrop-filter: blur(12px) saturate(180%);
-          background-color: ${colors.cardBg};
-          margin: 10px 0;
-          padding: 12px 16px;
-          border-radius: 12px;
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          background: ${colors.cardBg};
+          border: 1px solid ${colors.cardBorder};
+          margin: 12px 0;
+          padding: 16px 20px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15), 0 2px 8px ${colors.shadow}20;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: slideIn 0.4s ease-out backwards;
+        }
+        li:nth-child(1) { animation-delay: 0.05s; }
+        li:nth-child(2) { animation-delay: 0.1s; }
+        li:nth-child(3) { animation-delay: 0.15s; }
+        li:nth-child(4) { animation-delay: 0.2s; }
+        li:nth-child(5) { animation-delay: 0.25s; }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        li:hover {
+          transform: translateY(-2px) scale(1.01);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2), 0 4px 12px ${colors.shadow}40;
+          border-color: ${colors.accentSolid};
         }
         .task-title {
           flex: 1;
-          margin-left: 10px;
-          font-size: 15px;
+          margin-left: 12px;
+          font-size: 16px;
+          font-weight: 500;
           color: ${colors.text};
+          word-break: break-word;
         }
-        .done { text-decoration: line-through; opacity: 0.6; }
+        .done { 
+          text-decoration: line-through; 
+          opacity: 0.5; 
+          color: ${colors.textSecondary};
+        }
+        .task-date {
+          opacity: 0.7;
+          margin-right: 12px;
+          font-size: 13px;
+          color: ${colors.textSecondary};
+          font-weight: 500;
+        }
         button {
           border: none;
           cursor: pointer;
-          margin-left: 6px;
-          border-radius: 8px;
-          padding: 6px 8px;
+          margin-left: 8px;
+          border-radius: 10px;
+          padding: 8px 12px;
           font-size: 14px;
-          background: ${colors.text}1A;
+          font-weight: 600;
+          background: ${colors.bg3};
           color: ${colors.text};
-          transition: background 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          position: relative;
+          overflow: hidden;
         }
-        button:hover {
-          background: ${colors.text}33;
+        button:not(.tab-btn):not(#addBtn):hover {
+          background: ${colors.accent};
+          color: white;
+          transform: scale(1.05);
+          box-shadow: 0 4px 12px ${colors.shadow}50;
+        }
+        button:not(.tab-btn):not(#addBtn):active {
+          transform: scale(0.95);
+        }
+        .task-input-container {
+          margin-top: 24px;
+          display: flex;
+          gap: 12px;
+          align-items: stretch;
         }
         #taskInput {
-          width: 70%;
-          padding: 8px;
-          border-radius: 8px;
-          border: 1px solid ${colors.text}33;
-          background: ${colors.text}1A;
+          flex: 1;
+          padding: 14px 18px;
+          border-radius: 12px;
+          border: 2px solid ${colors.cardBorder};
+          background: ${colors.cardBg};
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
           color: ${colors.text};
+          font-size: 15px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #taskInput:focus {
+          outline: none;
+          border-color: ${colors.accentSolid};
+          box-shadow: 0 4px 16px ${colors.shadow}40;
+          transform: translateY(-2px);
         }
         #taskInput::placeholder {
-          color: ${colors.text}80;
+          color: ${colors.textSecondary};
         }
         #addBtn {
-          padding: 8px 14px;
-          margin-left: 10px;
-          background: ${typeof colors.accent === 'string' && colors.accent.includes('gradient') ? colors.accent : colors.accent};
+          padding: 14px 28px;
+          background: ${colors.accent};
           color: white;
-          border-radius: 8px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 15px;
+          box-shadow: 0 4px 16px ${colors.shadow}50;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #addBtn:hover {
-          opacity: 0.9;
+          transform: translateY(-2px) scale(1.05);
+          box-shadow: 0 6px 24px ${colors.shadow}70;
+        }
+        #addBtn:active {
+          transform: translateY(0) scale(1);
+        }
+        .settings-section {
+          background: ${colors.cardBg};
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid ${colors.cardBorder};
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        .settings-section h3 {
+          font-size: 20px;
+          font-weight: 700;
+          margin-bottom: 16px;
+          color: ${colors.text};
+          border-bottom: 2px solid ${colors.cardBorder};
+          padding-bottom: 12px;
+        }
+        .settings-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 16px;
+          padding: 12px;
+          border-radius: 10px;
+          background: ${colors.bg3}40;
+          transition: all 0.2s;
+        }
+        .settings-item:hover {
+          background: ${colors.bg3}60;
+        }
+        .settings-item label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-weight: 500;
+          color: ${colors.text};
+          cursor: pointer;
+        }
+        .settings-item input[type="checkbox"] {
+          width: 20px;
+          height: 20px;
+          cursor: pointer;
+          accent-color: ${colors.accentSolid};
+        }
+        .settings-item input[type="number"] {
+          width: 100px;
+          padding: 8px 12px;
+          border-radius: 8px;
+          border: 2px solid ${colors.cardBorder};
+          background: ${colors.cardBg};
+          color: ${colors.text};
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .settings-item input[type="number"]:focus {
+          outline: none;
+          border-color: ${colors.accentSolid};
+          box-shadow: 0 0 0 3px ${colors.shadow}30;
+        }
+        .theme-btn, .lang-btn {
+          padding: 12px 24px;
+          border-radius: 12px;
+          border: 2px solid ${colors.cardBorder};
+          background: ${colors.accent};
+          color: white;
+          font-weight: 700;
+          font-size: 15px;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 16px ${colors.shadow}50;
+          width: 100%;
+        }
+        .theme-btn:hover, .lang-btn:hover {
+          transform: translateY(-2px) scale(1.02);
+          box-shadow: 0 6px 24px ${colors.shadow}70;
+        }
+        .purge-btn {
+          padding: 10px 20px;
+          border-radius: 10px;
+          border: 2px solid ${colors.cardBorder};
+          background: ${colors.cardBg};
+          color: ${colors.text};
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+        .purge-btn:hover {
+          background: ${colors.accent};
+          color: white;
+          border-color: ${colors.accentSolid};
+          transform: translateY(-2px);
         }
       </style>
     </head>
     <body>
-      <div class="progress-label">[${bar}] ${progress}% ${t.completePercent}🎉</div>
-      <h2>✔ ${t.taskManager}</h2>
-      <div class="tabs">
-        <button class="tab-btn active" id="tabTasks" onclick="showTab('tasks')">${t.tasks}</button>
-        <button class="tab-btn" id="tabChecklist" onclick="showTab('checklist')">${t.checklist}</button>
-        <button class="tab-btn" id="tabSettings" onclick="showTab('settings')">⚙️ ${t.settings}</button>
-      </div>
-
-      <div id="viewTasks">
-        <ul>
-          ${tasks.map((t, i) =>
-            `<li>
-              <button onclick="toggleTask(${i})">✅</button>
-              <span class="task-title">${t.title}</span>
-              <button onclick="editTask(${i})">✏️</button>
-              <button onclick="deleteTask(${i}, 'tasks')">🗑</button>
-            </li>`
-          ).join("")}
-        </ul>
-        <div style="margin-top:16px; text-align:center;">
-          <input id="taskInput" placeholder="${t.newTask}">
-          <button id="addBtn" onclick="addTask()">${t.add}</button>
-        </div>
-      </div>
-
-      <div id="viewChecklist" style="display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div>${t.autoDelete}: ${cfg.autoDelete ? `${t.on}（${cfg.retentionDays}${t.days}）` : t.off}</div>
-          <button onclick="purgeOldCompleted()">${t.purgeOld}</button>
-        </div>
-        <ul>
-          ${checklist.map((c, i) =>
-            `<li>
-              <span class="task-title done">${c.title}</span>
-              <span style="opacity:0.7; margin-right:8px;">${formatDate(c.completedAt)}</span>
-              <button onclick="restoreTask(${i})">↩️ ${t.restore}</button>
-              <button onclick="deleteTask(${i}, 'checklist')">🗑</button>
-            </li>`
-          ).join("")}
-        </ul>
-      </div>
-
-      <div id="viewSettings" style="display:none;">
-        <div style="margin-bottom: 20px;">
-          <h3>${t.autoDelete}</h3>
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-            <label style="display: flex; align-items: center; gap: 5px;">
-              <input type="checkbox" id="autoDeleteToggle" ${cfg.autoDelete ? 'checked' : ''} onchange="toggleAutoDelete()">
-              ${t.autoDelete}
-            </label>
+      <div class="container">
+        <h2>✨ ${t.taskManager}</h2>
+        <div class="progress-container">
+          <div class="progress-label">${t.progress}</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: ${progress}%"></div>
           </div>
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-            <label for="retentionDaysInput">${t.retentionDays}:</label>
-            <input type="number" id="retentionDaysInput" value="${cfg.retentionDays}" min="1" max="365" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid ${colors.text}33; background: ${colors.text}1A; color: ${colors.text};">
-            <span>${t.days}</span>
-            <button onclick="updateRetentionDays()">${t.save}</button>
+          <div class="progress-text">${progress}% ${t.completePercent} 🎉</div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" id="tabTasks" onclick="showTab('tasks')">📋 ${t.tasks}</button>
+          <button class="tab-btn" id="tabChecklist" onclick="showTab('checklist')">✅ ${t.checklist}</button>
+          <button class="tab-btn" id="tabSettings" onclick="showTab('settings')">⚙️ ${t.settings}</button>
+        </div>
+
+        <div id="viewTasks" class="view-container">
+          <ul>
+            ${tasks.length === 0 ? `<li style="text-align: center; padding: 40px; opacity: 0.6;"><em>${cfg.language === 'ja' ? t.newTask + 'を追加してください' : 'Please add a ' + t.newTask.toLowerCase()}</em></li>` : tasks.map((task, i) =>
+              `<li>
+                <button onclick="toggleTask(${i})" title="${t.complete}">✅</button>
+                <span class="task-title">${task.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+                <button onclick="editTask(${i})" title="${t.edit}">✏️</button>
+                <button onclick="deleteTask(${i}, 'tasks')" title="${t.delete}">🗑️</button>
+              </li>`
+            ).join("")}
+          </ul>
+          <div class="task-input-container">
+            <input id="taskInput" placeholder="${t.newTask}" onkeypress="if(event.key==='Enter') addTask()">
+            <button id="addBtn" onclick="addTask()">➕ ${t.add}</button>
           </div>
         </div>
-        <div style="margin-bottom: 20px;">
-          <h3>${t.theme}</h3>
-          <button onclick="toggleTheme()">${cfg.theme === 'red' ? '🔴 ' + t.themeRed : cfg.theme === 'blue' ? '🔵 ' + t.themeBlue : cfg.theme === 'white' ? '⚪ ' + t.themeWhite : cfg.theme === 'black' ? '⚫ ' + t.themeBlack : '🌈 ' + t.themeRainbow}</button>
+
+        <div id="viewChecklist" class="view-container" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding:16px; background: ${colors.cardBg}; border-radius:12px; border: 1px solid ${colors.cardBorder};">
+            <div style="font-weight:600; color:${colors.text};">${t.autoDelete}: <span style="color:${colors.accentSolid};">${cfg.autoDelete ? `${t.on}（${cfg.retentionDays}${t.days}）` : t.off}</span></div>
+            <button class="purge-btn" onclick="purgeOldCompleted()">🗑️ ${t.purgeOld}</button>
+          </div>
+          <ul>
+            ${checklist.length === 0 ? `<li style="text-align: center; padding: 40px; opacity: 0.6;"><em>${cfg.language === 'ja' ? '完了したタスクはありません' : 'No completed tasks'}</em></li>` : checklist.map((c, i) =>
+              `<li>
+                <span class="task-title done">${c.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
+                <span class="task-date">${formatDate(c.completedAt)}</span>
+                <button onclick="restoreTask(${i})" title="${t.restore}">↩️ ${t.restore}</button>
+                <button onclick="deleteTask(${i}, 'checklist')" title="${t.delete}">🗑️</button>
+              </li>`
+            ).join("")}
+          </ul>
         </div>
-        <div style="margin-bottom: 20px;">
-          <h3>${t.language}</h3>
-          <button onclick="toggleLanguage()">🌐 ${cfg.language === 'ja' ? 'English' : '日本語'}</button>
+
+        <div id="viewSettings" class="view-container" style="display:none;">
+          <div class="settings-section">
+            <h3>⚙️ ${t.autoDelete}</h3>
+            <div class="settings-item">
+              <label>
+                <input type="checkbox" id="autoDeleteToggle" ${cfg.autoDelete ? 'checked' : ''} onchange="toggleAutoDelete()">
+                ${t.autoDelete}
+              </label>
+            </div>
+            <div class="settings-item">
+              <label for="retentionDaysInput" style="flex: 1;">${t.retentionDays}:</label>
+              <input type="number" id="retentionDaysInput" value="${cfg.retentionDays}" min="1" max="365">
+              <span>${t.days}</span>
+              <button onclick="updateRetentionDays()">💾 ${t.save}</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>🎨 ${t.theme}</h3>
+            <button class="theme-btn" onclick="toggleTheme()">${cfg.theme === 'red' ? '🔴 ' + t.themeRed : cfg.theme === 'blue' ? '🔵 ' + t.themeBlue : cfg.theme === 'white' ? '⚪ ' + t.themeWhite : cfg.theme === 'black' ? '⚫ ' + t.themeBlack : '🌈 ' + t.themeRainbow}</button>
+          </div>
+          <div class="settings-section">
+            <h3>🌐 ${t.language}</h3>
+            <button class="lang-btn" onclick="toggleLanguage()">🌐 ${cfg.language === 'ja' ? 'English' : '日本語'}</button>
+          </div>
         </div>
       </div>
 
@@ -515,9 +822,11 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
         }
         function addTask() {
           const input = document.getElementById('taskInput');
-          if (input.value.trim() !== '') {
-            vscode.postMessage({ command: 'addTask', title: input.value });
+          const value = input.value.trim();
+          if (value !== '') {
+            vscode.postMessage({ command: 'addTask', title: value });
             input.value = '';
+            input.focus();
           }
         }
         function toggleTask(index) {
@@ -527,13 +836,19 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           vscode.postMessage({ command: 'editTask', index });
         }
         function deleteTask(index, scope) {
-          vscode.postMessage({ command: 'deleteTask', index, scope });
+          const msg = '${cfg.language === 'ja' ? t.delete + 'しますか？' : 'Are you sure you want to delete?'}';
+          if (confirm(msg)) {
+            vscode.postMessage({ command: 'deleteTask', index, scope });
+          }
         }
         function restoreTask(index) {
           vscode.postMessage({ command: 'restoreTask', index });
         }
         function purgeOldCompleted() {
-          vscode.postMessage({ command: 'purgeOldCompleted' });
+          const msg = '${cfg.language === 'ja' ? t.purgeOld + 'しますか？' : 'Are you sure you want to purge old completed tasks?'}';
+          if (confirm(msg)) {
+            vscode.postMessage({ command: 'purgeOldCompleted' });
+          }
         }
         function toggleLanguage() {
           vscode.postMessage({ command: 'toggleLanguage' });
@@ -546,11 +861,20 @@ function getWebviewContent(tasks: any[], checklist: any[], cfg: { enableChecklis
           const days = parseInt(input.value);
           if (days >= 1 && days <= 365) {
             vscode.postMessage({ command: 'updateRetentionDays', days: days });
+          } else {
+            const msg = '${cfg.language === 'ja' ? '1から365の間で入力してください' : 'Please enter a number between 1 and 365'}';
+            alert(msg);
           }
         }
         function toggleTheme() {
           vscode.postMessage({ command: 'toggleTheme' });
         }
+        document.addEventListener('DOMContentLoaded', function() {
+          const input = document.getElementById('taskInput');
+          if (input) {
+            input.focus();
+          }
+        });
       </script>
     </body>
     </html>`;
